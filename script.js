@@ -1,18 +1,11 @@
 (function () {
   const TOTAL = 100;
-  const LEADERBOARD_STORAGE_KEY = "quietusMusesLeaderboard";
-  const leaderboardEndpoint = (
-    window.QUIETUS_LEADERBOARD_ENDPOINT ||
-    document.querySelector('meta[name="leaderboard-endpoint"]')?.content ||
-    ""
-  ).trim();
 
   const screens = {
     home: document.getElementById("home-screen"),
     game: document.getElementById("game-screen"),
     lose: document.getElementById("lose-screen"),
-    win: document.getElementById("win-screen"),
-    leaderboard: document.getElementById("leaderboard-screen")
+    win: document.getElementById("win-screen")
   };
 
   const slotGrid = document.getElementById("slot-grid");
@@ -23,12 +16,6 @@
   const score = document.getElementById("score");
   const progressBar = document.getElementById("progress-bar");
   const namedList = document.getElementById("named-list");
-  const winnerForm = document.getElementById("winner-form");
-  const winnerNameInput = document.getElementById("winner-name");
-  const winnerStatus = document.getElementById("winner-status");
-  const leaderboardPlace = document.getElementById("leaderboard-place");
-  const leaderboardTable = document.getElementById("leaderboard-table");
-  const leaderboardNote = document.getElementById("leaderboard-note");
 
   const masterlist = Array.isArray(window.QUIETUS_MUSES) ? window.QUIETUS_MUSES : [];
   const struckNameAliases = {
@@ -41,166 +28,11 @@
   let startTime = 0;
   let elapsedSeconds = 0;
   let timerHandle = null;
-  let pendingWinEntry = null;
-  let leaderboardRecords = [];
 
   function formatTime(totalSeconds) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
     return minutes + ":" + String(seconds).padStart(2, "0");
-  }
-
-  function getLeaderboardEndpoint() {
-    return leaderboardEndpoint.replace(/\/$/, "");
-  }
-
-  function sanitizeWinnerName(value) {
-    return normalizeName(value).slice(0, 32);
-  }
-
-  function sortLeaderboard(records) {
-    return records.slice().sort((a, b) => {
-      if (a.timeSeconds !== b.timeSeconds) {
-        return a.timeSeconds - b.timeSeconds;
-      }
-
-      return new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime();
-    });
-  }
-
-  function cleanLeaderboardRecords(records) {
-    const uniqueRecords = new Map();
-
-    records.forEach((record) => {
-      const timeSeconds = Number(record.timeSeconds);
-      const name = sanitizeWinnerName(record.name || "");
-
-      if (!name || !Number.isFinite(timeSeconds) || timeSeconds < 0) {
-        return;
-      }
-
-      uniqueRecords.set(record.id || name + "-" + timeSeconds + "-" + record.completedAt, {
-        id: record.id || window.crypto?.randomUUID?.() || String(Date.now() + Math.random()),
-        name,
-        timeSeconds: Math.floor(timeSeconds),
-        completedAt: record.completedAt || new Date().toISOString()
-      });
-    });
-
-    return sortLeaderboard(Array.from(uniqueRecords.values()));
-  }
-
-  function getSavedLeaderboard() {
-    try {
-      return cleanLeaderboardRecords(JSON.parse(window.localStorage.getItem(LEADERBOARD_STORAGE_KEY) || "[]"));
-    } catch (error) {
-      return [];
-    }
-  }
-
-  function saveLeaderboard(records) {
-    leaderboardRecords = cleanLeaderboardRecords(records);
-    window.localStorage.setItem(LEADERBOARD_STORAGE_KEY, JSON.stringify(leaderboardRecords));
-    renderLeaderboard();
-  }
-
-  function getPlacementForTime(timeSeconds) {
-    return leaderboardRecords.filter((record) => record.timeSeconds <= timeSeconds).length + 1;
-  }
-
-  function renderLeaderboard() {
-    leaderboardTable.innerHTML = "";
-
-    if (!leaderboardRecords.length) {
-      const emptyRow = document.createElement("div");
-      const rank = document.createElement("strong");
-      const label = document.createElement("span");
-      const time = document.createElement("em");
-
-      emptyRow.className = "leaderboard-empty";
-      rank.textContent = "1";
-      label.textContent = "Awaiting first full 100";
-      time.textContent = "--:--";
-      emptyRow.append(rank, label, time);
-      leaderboardTable.appendChild(emptyRow);
-    } else {
-      leaderboardRecords.forEach((record, index) => {
-        const row = document.createElement("div");
-        const rank = document.createElement("strong");
-        const name = document.createElement("span");
-        const time = document.createElement("em");
-
-        rank.textContent = String(index + 1);
-        name.textContent = record.name;
-        time.textContent = formatTime(record.timeSeconds);
-
-        row.append(rank, name, time);
-        leaderboardTable.appendChild(row);
-      });
-    }
-
-    leaderboardNote.textContent = getLeaderboardEndpoint()
-      ? "Completed challenges only. Synced online when available."
-      : "Completed challenges only. This browser is keeping the record until an online leaderboard endpoint is connected.";
-  }
-
-  async function syncLeaderboard() {
-    const endpoint = getLeaderboardEndpoint();
-
-    if (!endpoint) {
-      return;
-    }
-
-    try {
-      const response = await window.fetch(endpoint, { headers: { Accept: "application/json" } });
-
-      if (!response.ok) {
-        throw new Error("Leaderboard could not be loaded.");
-      }
-
-      const data = await response.json();
-      const records = Array.isArray(data) ? data : data.records;
-
-      if (Array.isArray(records)) {
-        saveLeaderboard(leaderboardRecords.concat(records));
-      }
-    } catch (error) {
-      leaderboardNote.textContent = "Online leaderboard is unavailable right now. Showing saved records from this browser.";
-    }
-  }
-
-  async function publishLeaderboardRecord(record) {
-    const endpoint = getLeaderboardEndpoint();
-
-    if (!endpoint) {
-      return false;
-    }
-
-    try {
-      const response = await window.fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json"
-        },
-        body: JSON.stringify(record)
-      });
-
-      if (!response.ok) {
-        throw new Error("Leaderboard could not be saved online.");
-      }
-
-      const data = await response.json().catch(() => null);
-      const records = Array.isArray(data) ? data : data?.records;
-
-      if (Array.isArray(records)) {
-        saveLeaderboard(leaderboardRecords.concat(records));
-      }
-
-      return true;
-    } catch (error) {
-      return false;
-    }
   }
 
   function showScreen(name) {
@@ -398,7 +230,6 @@
 
   function startGame() {
     namedMuses = [];
-    pendingWinEntry = null;
     elapsedSeconds = 0;
     setInputNote("", "");
     museInput.value = "";
@@ -460,22 +291,9 @@
   function winGame() {
     stopTimer();
     const finalTime = formatTime(elapsedSeconds);
-    pendingWinEntry = {
-      id: window.crypto?.randomUUID?.() || String(Date.now() + Math.random()),
-      name: "",
-      museCount: TOTAL,
-      timeSeconds: elapsedSeconds,
-      completedAt: new Date().toISOString()
-    };
 
     document.getElementById("win-time").textContent = finalTime;
     document.getElementById("receipt-time").textContent = finalTime;
-    leaderboardPlace.textContent = String(getPlacementForTime(elapsedSeconds));
-    winnerForm.classList.remove("is-saved");
-    winnerNameInput.value = "";
-    winnerNameInput.disabled = false;
-    winnerForm.querySelector("button").disabled = false;
-    winnerStatus.textContent = "";
 
     namedList.innerHTML = "";
     namedMuses.forEach((muse) => {
@@ -485,32 +303,6 @@
     });
 
     showScreen("win");
-    window.setTimeout(() => winnerNameInput.focus(), 80);
-  }
-
-  async function saveWinningName(value) {
-    const name = sanitizeWinnerName(value);
-
-    if (!pendingWinEntry || !name) {
-      winnerStatus.textContent = "Enter a name to save your completed challenge.";
-      return;
-    }
-
-    const record = {
-      ...pendingWinEntry,
-      name
-    };
-
-    saveLeaderboard(leaderboardRecords.concat(record));
-    leaderboardPlace.textContent = String(leaderboardRecords.findIndex((savedRecord) => savedRecord.id === record.id) + 1);
-    winnerStatus.textContent = "Saved locally.";
-    winnerNameInput.disabled = true;
-    winnerForm.querySelector("button").disabled = true;
-    winnerForm.classList.add("is-saved");
-    pendingWinEntry = null;
-
-    const synced = await publishLeaderboardRecord(record);
-    winnerStatus.textContent = synced ? "Saved to the online leaderboard." : "Saved in this browser.";
   }
 
   function downloadScreenshot() {
@@ -598,12 +390,6 @@
       showScreen("home");
     }
 
-    if (action === "leaderboard") {
-      stopTimer();
-      showScreen("leaderboard");
-      syncLeaderboard();
-    }
-
     if (action === "giveup") {
       loseGame();
     }
@@ -618,13 +404,6 @@
     addMuse(museInput.value);
   });
 
-  winnerForm.addEventListener("submit", (event) => {
-    event.preventDefault();
-    saveWinningName(winnerNameInput.value);
-  });
-
   buildSlots();
   setCurrentDate();
-  saveLeaderboard(getSavedLeaderboard());
-  syncLeaderboard();
 })();
