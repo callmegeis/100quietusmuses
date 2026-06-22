@@ -16,6 +16,7 @@
   const score = document.getElementById("score");
   const progressBar = document.getElementById("progress-bar");
   const namedList = document.getElementById("named-list");
+  const nonLetterNumberPattern = getNonLetterNumberPattern();
 
   const masterlist = Array.isArray(window.QUIETUS_MUSES) ? window.QUIETUS_MUSES : [];
   const struckNameAliases = {
@@ -29,15 +30,39 @@
   let elapsedSeconds = 0;
   let timerHandle = null;
 
+  function getNonLetterNumberPattern() {
+    try {
+      return new RegExp("[^\\p{L}\\p{N}]+", "gu");
+    } catch (error) {
+      return /[^A-Za-z0-9]+/g;
+    }
+  }
+
+  function zeroPad(value) {
+    return value < 10 ? "0" + value : String(value);
+  }
+
+  function forEachItem(items, callback) {
+    Array.prototype.forEach.call(items, callback);
+  }
+
   function formatTime(totalSeconds) {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-    return minutes + ":" + String(seconds).padStart(2, "0");
+    return minutes + ":" + zeroPad(seconds);
   }
 
   function showScreen(name) {
-    Object.values(screens).forEach((screen) => screen.classList.remove("is-active"));
-    screens[name].classList.add("is-active");
+    const nextScreen = screens[name] || screens.home;
+
+    nextScreen.classList.add("is-active");
+    Object.keys(screens).forEach((screenName) => {
+      const screen = screens[screenName];
+
+      if (screen !== nextScreen) {
+        screen.classList.remove("is-active");
+      }
+    });
   }
 
   function normalizeName(value) {
@@ -45,14 +70,16 @@
   }
 
   function normalizeSearchKey(value) {
-    return normalizeName(value)
-      .normalize("NFD")
+    const normalizedName = normalizeName(value);
+    const decomposedName = typeof normalizedName.normalize === "function" ? normalizedName.normalize("NFD") : normalizedName;
+
+    return decomposedName
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[“”]/g, "\"")
       .replace(/[‘’]/g, "'")
-      .toLocaleLowerCase()
+      .toLowerCase()
       .replace(/&/g, " and ")
-      .replace(/[^\p{L}\p{N}]+/gu, " ")
+      .replace(nonLetterNumberPattern, " ")
       .trim()
       .replace(/\s+/g, " ");
   }
@@ -80,13 +107,22 @@
   }
 
   function addQuotedAliases(aliases, value) {
-    Array.from(value.matchAll(/["“]([^"”]+)["”]/g)).forEach((match) => addAlias(aliases, match[1]));
-    Array.from(value.matchAll(/(?:^|\s)'([^']+)'(?=\s|$)/g)).forEach((match) => addAlias(aliases, match[1]));
+    addPatternAliases(aliases, value, /["“]([^"”]+)["”]/g);
+    addPatternAliases(aliases, value, /(?:^|\s)'([^']+)'(?=\s|$)/g);
+  }
+
+  function addPatternAliases(aliases, value, pattern) {
+    let match = pattern.exec(value);
+
+    while (match) {
+      addAlias(aliases, match[1]);
+      match = pattern.exec(value);
+    }
   }
 
   function getMuseAliases(name) {
     const aliases = new Set();
-    const parentheticalMatches = name.matchAll(/\(([^()]+)\)/g);
+    const parentheticalMatches = getPatternMatches(name, /\(([^()]+)\)/g);
     const nonAliasParenthetical = /\(\s*original character\s*\)/gi;
     const baseName = name.replace(nonAliasParenthetical, " ");
 
@@ -100,7 +136,7 @@
       addQuotedAliases(aliases, part);
     });
 
-    Array.from(parentheticalMatches).forEach((match) => {
+    parentheticalMatches.forEach((match) => {
       const parentheticalAlias = match[1].trim();
       const previousName = parentheticalAlias.match(/^prev\.\s*(.+)$/i);
 
@@ -115,6 +151,18 @@
     });
 
     return Array.from(aliases);
+  }
+
+  function getPatternMatches(value, pattern) {
+    const matches = [];
+    let match = pattern.exec(value);
+
+    while (match) {
+      matches.push(match);
+      match = pattern.exec(value);
+    }
+
+    return matches;
   }
 
   function getFirstNameKeys(alias) {
@@ -208,7 +256,7 @@
   function updateBoard() {
     const slots = slotGrid.querySelectorAll(".slot");
 
-    slots.forEach((slot, index) => {
+    forEachItem(slots, (slot, index) => {
       const muse = namedMuses[index];
       slot.textContent = muse ? muse.name : index + 1;
       slot.classList.toggle("is-filled", Boolean(muse));
@@ -352,7 +400,7 @@
       const x = startX + column * columnWidth;
       const y = startY + row * lineHeight;
       context.fillStyle = "#f6aa19";
-      context.fillText(String(index + 1).padStart(2, "0") + ".", x, y);
+      context.fillText(zeroPad(index + 1) + ".", x, y);
       context.fillStyle = "#fff7df";
       context.fillText(muse.name.slice(0, 20), x + 44, y);
     });
@@ -372,8 +420,22 @@
     });
   }
 
+  function getActionButton(target) {
+    let element = target;
+
+    while (element && element !== document) {
+      if (element.dataset && element.dataset.action) {
+        return element;
+      }
+
+      element = element.parentNode;
+    }
+
+    return null;
+  }
+
   document.addEventListener("click", (event) => {
-    const actionButton = event.target.closest("[data-action]");
+    const actionButton = getActionButton(event.target);
 
     if (!actionButton) {
       return;
