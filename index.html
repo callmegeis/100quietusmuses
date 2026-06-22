@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="leaderboard-endpoint" content="/leaderboard">
+    <title>Name 100 Quietus Muses</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Roboto+Mono:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="screen screen-home is-active" id="home-screen" aria-labelledby="home-title">
+        <div class="sigil" aria-hidden="true">&#10022;</div>
+        <h1 id="home-title">Name <span>100</span> Quietus Muses</h1>
+
+        <article class="rules-card">
+          <h2>THE RULES</h2>
+          <ul>
+            <li>Must be a <strong>currently apped muse</strong> - no muses who have been dropped</li>
+            <li><strong>No repeats</strong> - every muse counts once</li>
+            <li><strong>Full names</strong> (when applicable) or aliases only, not just first names</li>
+            <li>Name <strong>100</strong> to win; the clock counts up</li>
+          </ul>
+          <p>Muses are verified and updated periodically with the masterlist - the last update was on <span id="current-date">today</span>.</p>
+        </article>
+
+        <div class="home-actions">
+          <button class="button button-primary" type="button" data-action="start">Let's play</button>
+          <button class="button button-secondary" type="button" data-action="leaderboard">
+            <span aria-hidden="true">&#9819;</span>
+            Leaderboard
+          </button>
+        </div>
+      </section>
+
+      <section class="screen screen-game" id="game-screen" aria-labelledby="game-title">
+        <h2 class="sr-only" id="game-title">Name Quietus Muses</h2>
+        <header class="game-header">
+          <div class="timer-block">
+            <span class="timer-icon" aria-hidden="true">&#9719;</span>
+            <span class="timer" id="timer">0:00</span>
+          </div>
+          <button class="score-block" type="button" data-action="giveup" aria-live="polite">
+            <strong><span id="score">0</span> <span>/ 100</span></strong>
+            <small>give up</small>
+          </button>
+        </header>
+
+        <div class="progress-track" aria-hidden="true">
+          <span id="progress-bar"></span>
+        </div>
+
+        <form class="entry-form" id="entry-form" autocomplete="off">
+          <label class="sr-only" for="muse-input">Type a muse's name</label>
+          <input id="muse-input" name="muse" type="text" placeholder="Type a muse's name..." maxlength="180">
+        </form>
+
+        <p class="input-note" id="input-note" role="status" aria-live="polite"></p>
+
+        <section class="slot-grid" id="slot-grid" aria-label="Named muses"></section>
+      </section>
+
+      <section class="screen screen-result" id="lose-screen" aria-labelledby="lose-title">
+        <article class="result-card">
+          <div class="result-icon" aria-hidden="true">&#9719;</div>
+          <h2 id="lose-title">GAME OVER</h2>
+          <p class="result-score"><span id="lose-count">0</span> <span>/ 100</span></p>
+          <p class="result-copy"><span id="lose-copy-count">0</span> muses named in <span id="lose-time">0:00</span>.</p>
+          <p class="result-callout">Only a full <strong>100</strong> makes the full leaderboard - so close! Give it another go.</p>
+          <div class="result-actions">
+            <button class="text-button gold" type="button" data-action="restart">Play again</button>
+            <button class="text-button" type="button" data-action="leaderboard">Leaderboard</button>
+          </div>
+        </article>
+      </section>
+
+      <section class="screen screen-result" id="win-screen" aria-labelledby="win-title">
+        <article class="result-card win-card">
+          <div class="result-icon" aria-hidden="true">&#10022;</div>
+          <h2 id="win-title">YOU NAMED 100</h2>
+          <p class="result-score">#<span id="leaderboard-place">1</span></p>
+          <p class="result-copy">Congratulations - 100 Quietus Muses named in <span id="win-time">0:00</span>.</p>
+          <form class="winner-form" id="winner-form" autocomplete="off">
+            <label for="winner-name">Add your name to the leaderboard</label>
+            <div>
+              <input id="winner-name" name="winnerName" type="text" placeholder="Your name" maxlength="32" required>
+              <button class="text-button gold" type="submit">Save</button>
+            </div>
+            <p id="winner-status" role="status" aria-live="polite"></p>
+          </form>
+          <p class="result-callout">Only completed games are recorded. Rankings are sorted by the fastest time.</p>
+          <div class="result-actions">
+            <button class="text-button gold" type="button" data-action="screenshot">Download screenshot</button>
+            <button class="text-button" type="button" data-action="leaderboard">Leaderboard</button>
+            <button class="text-button" type="button" data-action="restart">Play again</button>
+          </div>
+          <section class="named-list-wrap" id="screenshot-card" aria-label="Winning muse list">
+            <div class="receipt-heading">
+              <strong>Name 100 Quietus Muses</strong>
+              <span id="receipt-time">0:00</span>
+            </div>
+            <ol class="named-list" id="named-list"></ol>
+          </section>
+        </article>
+      </section>
+
+      <section class="screen screen-result" id="leaderboard-screen" aria-labelledby="leaderboard-title">
+        <article class="result-card leaderboard-card">
+          <div class="result-icon" aria-hidden="true">&#9819;</div>
+          <h2 id="leaderboard-title">LEADERBOARD</h2>
+          <p class="leaderboard-note" id="leaderboard-note">Completed challenges only. Fastest time ranks first.</p>
+          <div class="leaderboard-table" id="leaderboard-table" aria-live="polite">
+            <div class="leaderboard-empty"><strong>1</strong><span>Awaiting first full 100</span><em>--:--</em></div>
+          </div>
+          <div class="result-actions">
+            <button class="text-button gold" type="button" data-action="start">Let's play</button>
+            <button class="text-button" type="button" data-action="home">Home</button>
+          </div>
+        </article>
+      </section>
+    </main>
+
+    <script src="masterlist.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
